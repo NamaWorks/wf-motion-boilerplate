@@ -495,31 +495,85 @@ Then hard-refresh the browser (`Cmd+Shift+R` / `Ctrl+Shift+R`) to pick up the ne
 
 ## Getting Started
 
-### 1. Load the stylesheet
+There are two ways to integrate the system: a quick paste method for testing, and a CDN-based setup for production.
 
-Add this inside the `<head>` of your Webflow project (Site Settings → Custom Code → Head):
+### Option A — Quick test (paste directly into Webflow)
+
+Use this to try the system out before setting up a GitHub repository.
+
+In **Site Settings → Custom Code → Head**, add:
+
+```html
+<style>
+  /* paste the full contents of dist/webflow-motion.css here */
+</style>
+```
+
+In **Site Settings → Custom Code → Footer**, add:
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+  /* paste the full contents of dist/webflow-motion.js here */
+</script>
+<script>
+  WebflowMotion.init({
+    loader: true,
+    pageTransitions: true,
+    showPageName: true
+  });
+</script>
+```
+
+Publish the site and test the loader and transitions.
+
+---
+
+### Option B — Production setup (GitHub + jsDelivr)
+
+This is the recommended approach for live projects. The system is served from a CDN and tied to a specific version, so updates to the repository never affect existing client sites.
+
+**1. Push the repository to GitHub**
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+git push -u origin master
+```
+
+**2. Create a release tag**
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+jsDelivr automatically serves any tagged GitHub release. The first request to a new tag can take 2–3 minutes to propagate — if the URL returns a 404, wait a moment and try again.
+
+**3. Load the stylesheet**
+
+In **Site Settings → Custom Code → Head**:
 
 ```html
 <link
   rel="stylesheet"
-  href="https://cdn.jsdelivr.net/gh/USER/REPO@v1.0.0/dist/webflow-motion.css"
+  href="https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@v1.0.0/dist/webflow-motion.css"
 >
 ```
 
-### 2. Load GSAP and the motion script
+**4. Load GSAP and the motion script**
 
-Add this before the closing `</body>` tag (Site Settings → Custom Code → Footer):
+In **Site Settings → Custom Code → Footer**:
 
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/USER/REPO@v1.0.0/dist/webflow-motion.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@v1.0.0/dist/webflow-motion.js"></script>
 ```
 
 GSAP must load before the motion script.
 
-### 3. Initialize
+**5. Initialize**
 
-Add the init call immediately after the script tags:
+Immediately after the script tags:
 
 ```html
 <script>

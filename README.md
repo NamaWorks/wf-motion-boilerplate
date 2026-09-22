@@ -472,6 +472,86 @@ It should also account for:
 
 The goal is to enhance navigation without breaking standard browser behavior.
 
+## Local Development
+
+Clone the repository and serve the test pages with any static server.
+
+```bash
+npx serve .
+```
+
+Then open `http://localhost:3000/test/` in your browser.
+
+- `test/index.html` — home page, runs the **loader** on first visit
+- `test/about.html`, `work.html`, `contact.html` — inner pages for testing **transitions**
+
+After editing any source file, rebuild the dist:
+
+```bash
+node scripts/build.js
+```
+
+Then hard-refresh the browser (`Cmd+Shift+R` / `Ctrl+Shift+R`) to pick up the new dist.
+
+## Getting Started
+
+### 1. Load the stylesheet
+
+Add this inside the `<head>` of your Webflow project (Site Settings → Custom Code → Head):
+
+```html
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/USER/REPO@v1.0.0/dist/webflow-motion.css"
+>
+```
+
+### 2. Load GSAP and the motion script
+
+Add this before the closing `</body>` tag (Site Settings → Custom Code → Footer):
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/USER/REPO@v1.0.0/dist/webflow-motion.js"></script>
+```
+
+GSAP must load before the motion script.
+
+### 3. Initialize
+
+Add the init call immediately after the script tags:
+
+```html
+<script>
+  WebflowMotion.init({
+    loader: true,
+    pageTransitions: true,
+    showPageName: true
+  });
+</script>
+```
+
+### Configuration options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `loader` | boolean | `true` | Show the full-screen loader on initial page load |
+| `pageTransitions` | boolean | `true` | Enable page transition animations |
+| `showPageName` | boolean | `true` | Display the destination page name during transitions |
+| `loaderColor` | string | `#000000` | Background color of the loader overlay |
+| `loaderText` | string | `Loading` | Text displayed during the loader |
+| `transitionColor` | string | `#1a5c38` | Background color of the transition overlay |
+| `duration` | number | `0.7` | Animation duration in seconds |
+| `ease` | string | `power2.inOut` | GSAP easing function |
+
+### Custom page names
+
+By default the transition reads the page name from the URL path (`/about` → `About`). To override it, add a `data-page` attribute to the link:
+
+```html
+<a href="/about" data-page="Our Story">Our Story</a>
+```
+
 ## Versioning
 
 Production projects should always reference a specific version.

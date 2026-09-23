@@ -608,23 +608,62 @@ By default the transition reads the page name from the URL path (`/about` → `A
 
 ## Versioning
 
-Production projects should always reference a specific version.
-
-For example:
+Production projects should always reference a specific version tag rather than `main`.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/USER/REPO@v1.0.0/dist/webflow-motion.js"></script>
+<!-- ✓ pinned to a version — safe for production -->
+<script src="https://cdn.jsdelivr.net/gh/NamaWorks/wf-motion-boilerplate@v1.0.0/dist/webflow-motion.js"></script>
+
+<!-- ✗ always latest — a future update could break existing sites -->
+<script src="https://cdn.jsdelivr.net/gh/NamaWorks/wf-motion-boilerplate@main/dist/webflow-motion.js"></script>
 ```
 
-Rather than:
+This means a client site can stay on `v1.0.0` indefinitely while new projects use `v1.2.0`. Changes to the repo never affect live sites unless you manually update the version in Webflow.
+
+### When to create a new tag
+
+Create a new tag whenever you ship a change that should be available to projects:
+
+- Bug fix → increment the patch version: `v1.0.0` → `v1.0.1`
+- New feature or config option → increment the minor version: `v1.0.0` → `v1.1.0`
+- Breaking change (different API, renamed options) → increment the major version: `v1.0.0` → `v2.0.0`
+
+### How to release a new version
+
+**1. Make your changes in `src/`, then rebuild dist:**
+
+```bash
+node scripts/build.js
+```
+
+**2. Commit everything:**
+
+```bash
+git add src/ dist/
+git commit -m "feat: describe what changed"
+```
+
+**3. Tag the release and push:**
+
+```bash
+git tag v1.0.1
+git push origin master
+git push origin v1.0.1
+```
+
+jsDelivr picks up the new tag automatically within a few minutes.
+
+### How to update a Webflow project to a new version
+
+In Webflow, go to **Site Settings → Custom Code** and update the version number in the two CDN URLs (head and footer):
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/USER/REPO@main/dist/webflow-motion.js"></script>
+<!-- change @v1.0.0 to @v1.0.1 in both the CSS and JS links -->
+href="https://cdn.jsdelivr.net/gh/NamaWorks/wf-motion-boilerplate@v1.0.1/dist/webflow-motion.css"
+src="https://cdn.jsdelivr.net/gh/NamaWorks/wf-motion-boilerplate@v1.0.1/dist/webflow-motion.js"
 ```
 
-This prevents changes to the repository from unexpectedly affecting existing client websites.
-
-A project can therefore remain on `v1.0.0` while a newer project uses `v1.2.0`.
+Publish the site. The old version keeps working on any other project until you update it there too.
 
 ## Version 1.0.0 — MVP
 

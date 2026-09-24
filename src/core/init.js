@@ -10,13 +10,26 @@
 let _bodyHideStyle = null;
 
 function _hideBody() {
+  // Skip if the head snippet already handled this
+  if (document.head.querySelector('[data-wm-init]')) return;
+
+  // Match the html background to the overlay color so the browser-native
+  // flash between page loads shows the right color instead of white.
+  const hasIncoming = !!sessionStorage.getItem('wm_transition');
+  const bg = hasIncoming ? _config.transitionColor : _config.loaderColor;
+
   _bodyHideStyle = document.createElement('style');
   _bodyHideStyle.setAttribute('data-wm', '');
-  _bodyHideStyle.textContent = 'body{visibility:hidden!important}';
+  _bodyHideStyle.textContent = `html{background-color:${bg}!important}body{visibility:hidden!important}`;
   document.head.appendChild(_bodyHideStyle);
 }
 
 function _showBody() {
+  // Remove head snippet (Layer 1)
+  const headStyle = document.head.querySelector('[data-wm-init]');
+  if (headStyle) headStyle.parentNode.removeChild(headStyle);
+
+  // Remove runtime fallback (Layer 2)
   if (_bodyHideStyle && _bodyHideStyle.parentNode) {
     _bodyHideStyle.parentNode.removeChild(_bodyHideStyle);
   }

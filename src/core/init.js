@@ -63,21 +63,23 @@ window.WebflowMotion = {
 
     // ─── Setup (runs after DOM is available) ─────────────────────────────────
     function setup() {
-      _buildOverlay();   // create the shared overlay DOM node
-      _resetOverlay();   // set overlay to opacity:0 / inert state
+      _buildOverlay();  // create the shared overlay DOM node
+      _resetOverlay();  // set overlay to opacity:0 / inert state
 
-      // Restore body visibility now — the overlay will cover the page
-      // immediately after this if either the loader or a transition entry runs.
-      _showBody();
-
-      // If we arrived here from a page transition, show the overlay and
-      // fade it out to reveal the new page. Skip the loader in this case.
+      // Set up the overlay BEFORE restoring body visibility.
+      // Both _revealOnEntry and _runLoader call _showOverlayInstant synchronously,
+      // putting the overlay at opacity:1 before the body becomes visible.
+      // This closes the gap where the body was briefly visible but uncovered.
       const isEntry = _config.pageTransitions && _revealOnEntry();
 
       if (!isEntry && _config.loader) {
         _isTransitioning = true;
         _runLoader();
       }
+
+      // Restore body visibility now — the overlay is already covering the page.
+      // If neither loader nor transition entry ran, the page just shows normally.
+      _showBody();
 
       // Attach the click listener for future navigations on this page
       if (_config.pageTransitions) {

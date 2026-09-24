@@ -485,13 +485,28 @@ Then open `http://localhost:3000/test/` in your browser.
 - `test/index.html` — home page, runs the **loader** on first visit
 - `test/about.html`, `work.html`, `contact.html` — inner pages for testing **transitions**
 
-After editing any source file, rebuild the dist:
+### Building
+
+After editing any source file, rebuild the dist manually:
 
 ```bash
 node scripts/build.js
 ```
 
-Then hard-refresh the browser (`Cmd+Shift+R` / `Ctrl+Shift+R`) to pick up the new dist.
+Or run watch mode to rebuild automatically on every save:
+
+```bash
+node scripts/build.js --watch
+```
+
+Open two terminal tabs — one for the server, one for the watcher:
+
+```
+Tab 1: npx serve .
+Tab 2: node scripts/build.js --watch
+```
+
+Then hard-refresh the browser (`Cmd+Shift+R` / `Ctrl+Shift+R`) after each save to pick up the new dist.
 
 ## Getting Started
 

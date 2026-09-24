@@ -520,18 +520,16 @@ In **Site Settings → Custom Code → Head**, add both the anti-flash snippet a
 
 ```html
 <!-- Hides the page before the first paint to prevent flash of content.
-     Uses opacity:0 on html — stronger than visibility:hidden, cannot be
-     overridden by any child stylesheet. Removed by the motion script once
-     the overlay is in place. -->
+     Sets opacity and background directly on <html> as inline styles —
+     highest possible specificity, cannot be overridden by any stylesheet.
+     Removed by the motion script once the overlay is in place. -->
 <script>
   (function(){
     var bg = '#000000';
     var raw = sessionStorage.getItem('wm_transition');
     if (raw) { try { bg = JSON.parse(raw).color || bg; } catch(e){} }
-    var s = document.createElement('style');
-    s.setAttribute('data-wm-init','');
-    s.textContent = 'html{background-color:' + bg + '!important;opacity:0!important}';
-    document.head.appendChild(s);
+    document.documentElement.style.opacity = '0';
+    document.documentElement.style.backgroundColor = bg;
   })();
 </script>
 
@@ -586,18 +584,16 @@ In **Site Settings → Custom Code → Head**:
 
 ```html
 <!-- Hides the page before the first paint to prevent flash of content.
-     Uses opacity:0 on html — stronger than visibility:hidden, cannot be
-     overridden by any child stylesheet. Removed by the motion script once
-     the overlay is in place. -->
+     Sets opacity and background directly on <html> as inline styles —
+     highest possible specificity, cannot be overridden by any stylesheet.
+     Removed by the motion script once the overlay is in place. -->
 <script>
   (function(){
     var bg = '#000000';
     var raw = sessionStorage.getItem('wm_transition');
     if (raw) { try { bg = JSON.parse(raw).color || bg; } catch(e){} }
-    var s = document.createElement('style');
-    s.setAttribute('data-wm-init','');
-    s.textContent = 'html{background-color:' + bg + '!important;opacity:0!important}';
-    document.head.appendChild(s);
+    document.documentElement.style.opacity = '0';
+    document.documentElement.style.backgroundColor = bg;
   })();
 </script>
 

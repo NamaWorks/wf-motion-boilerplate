@@ -363,34 +363,34 @@ function _initTransitions() {
 // visibility:hidden is used instead of display:none or opacity:0 so that
 // layout is preserved and there's no reflow when the style is removed.
 
-let _bodyHideStyle = null;
+// ─── Flash of content prevention ─────────────────────────────────────────────
+// Inline styles on <html> have the highest possible specificity — no stylesheet
+// can override them. Setting opacity and background directly on the root element
+// is faster and more reliable than injecting a <style> tag.
+//
+// The head snippet (added to Webflow's <head> custom code) does the same thing
+// synchronously before the browser renders anything:
+//
+//   <script>
+//     (function(){
+//       var bg='#000000';
+//       var raw=sessionStorage.getItem('wm_transition');
+//       if(raw){try{bg=JSON.parse(raw).color||bg;}catch(e){}}
+//       document.documentElement.style.opacity='0';
+//       document.documentElement.style.backgroundColor=bg;
+//     })();
+//   </script>
 
 function _hideBody() {
-  // Skip if the head snippet already handled this
-  if (document.head.querySelector('[data-wm-init]')) return;
-
-  // opacity:0 on html is more aggressive than visibility:hidden on body —
-  // no child stylesheet can override it, and it hides everything including
-  // Webflow's own rendered output.
   const hasIncoming = !!sessionStorage.getItem('wm_transition');
   const bg = hasIncoming ? _config.transitionColor : _config.loaderColor;
-
-  _bodyHideStyle = document.createElement('style');
-  _bodyHideStyle.setAttribute('data-wm', '');
-  _bodyHideStyle.textContent = `html{background-color:${bg}!important;opacity:0!important}`;
-  document.head.appendChild(_bodyHideStyle);
+  document.documentElement.style.opacity = '0';
+  document.documentElement.style.backgroundColor = bg;
 }
 
 function _showBody() {
-  // Remove head snippet (Layer 1)
-  const headStyle = document.head.querySelector('[data-wm-init]');
-  if (headStyle) headStyle.parentNode.removeChild(headStyle);
-
-  // Remove runtime fallback (Layer 2)
-  if (_bodyHideStyle && _bodyHideStyle.parentNode) {
-    _bodyHideStyle.parentNode.removeChild(_bodyHideStyle);
-  }
-  _bodyHideStyle = null;
+  document.documentElement.style.opacity = '';
+  document.documentElement.style.backgroundColor = '';
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

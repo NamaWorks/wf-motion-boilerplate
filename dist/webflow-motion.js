@@ -336,8 +336,44 @@ function _revealOnEntry() {
   return true;
 }
 
+// ─── Back / forward navigation ────────────────────────────────────────────────
+// Detects whether the current page load was triggered by the browser's
+// back or forward button via the Navigation Timing API.
+
+function _isBackForwardNavigation() {
+  try {
+    const nav = performance.getEntriesByType('navigation')[0];
+    return nav && nav.type === 'back_forward';
+  } catch {
+    return false;
+  }
+}
+
+// Quick reveal for back/forward: show the overlay instantly then fade out.
+// No page name or long hold — the user already knows where they're going.
+
+function _revealBackForward() {
+  _showOverlayInstant(_config.transitionColor, '');
+  gsap.delayedCall(0.2, () => {
+    _overlayOut(() => {
+      _isTransitioning = false;
+    });
+  });
+}
+
+// Handles pages restored from the browser's back/forward cache (bfcache).
+// When a bfcache restore happens, scripts don't re-run — the pageshow event
+// fires instead with persisted: true. We play a quick reveal to smooth it out.
+
+function _initBackForward() {
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return; // not a bfcache restore — ignore
+    _isTransitioning = true;
+    _revealBackForward();
+  });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
-// Attaches the click listener. Called once from init.js setup().
 
 function _initTransitions() {
   document.addEventListener('click', _handleClick);
@@ -345,24 +381,45 @@ function _initTransitions() {
 
 // ── core/init.js ──
 // ─── Flash of content prevention ─────────────────────────────────────────────
-// When the script loads before </body>, the page is already painted. To prevent
-// the user from briefly seeing page content before the overlay covers it, we
-// inject a <style> tag that hides the body immediately. It is removed in
-// setup() right before the overlay takes over.
+// Two-layer approach:
 //
-// visibility:hidden is used instead of display:none or opacity:0 so that
-// layout is preserved and there's no reflow when the style is removed.
+// Layer 1 — inline <head> script (added to Webflow's head custom code):
+//   Hides the body synchronously before the browser renders any content.
+//   This is the only reliable way to prevent a flash when the main script
+//   loads near </body> (too late to hide before first paint).
+//
+//   <script>
+//     (function(){
+//       var s=document.createElement('style');
+//       s.setAttribute('data-wm-init','');
+//       s.textContent='body{visibility:hidden}';
+//       document.head.appendChild(s);
+//     })();
+//   </script>
+//
+// Layer 2 — _hideBody() below:
+//   Fallback for when the head snippet isn't present. Runs synchronously
+//   inside init() before DOMContentLoaded — still closes the flash window
+//   for most modern browsers.
 
 let _bodyHideStyle = null;
 
 function _hideBody() {
+  // Don't inject a duplicate if the head snippet already hid the body
+  if (document.head.querySelector('[data-wm-init]')) return;
   _bodyHideStyle = document.createElement('style');
   _bodyHideStyle.setAttribute('data-wm', '');
+  // visibility:hidden preserves layout — no reflow when restored
   _bodyHideStyle.textContent = 'body{visibility:hidden!important}';
   document.head.appendChild(_bodyHideStyle);
 }
 
 function _showBody() {
+  // Remove the head inline snippet (Layer 1)
+  const headStyle = document.head.querySelector('[data-wm-init]');
+  if (headStyle) headStyle.parentNode.removeChild(headStyle);
+
+  // Remove the runtime fallback (Layer 2)
   if (_bodyHideStyle && _bodyHideStyle.parentNode) {
     _bodyHideStyle.parentNode.removeChild(_bodyHideStyle);
   }
@@ -370,56 +427,51 @@ function _showBody() {
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
-// WebflowMotion.init() is the only thing exposed to the outside world.
-// Everything else in this file is private to the IIFE.
 
 window.WebflowMotion = {
   init(userConfig) {
-    // Merge user options into the shared _config object
     Object.assign(_config, userConfig || {});
 
-    // Honour the OS-level reduced motion preference — collapse all durations
-    // so animations still run (callbacks still fire) but are imperceptible.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       _config.duration = 0.01;
     }
 
-    // Decide whether to hide the body before DOMContentLoaded fires.
-    // We check sessionStorage synchronously here because _hideBody() must
-    // run before the browser's next paint — waiting for DOM ready is too late.
+    // Synchronously decide whether to hide the body before DOMContentLoaded.
+    // PerformanceNavigationTiming is available immediately — no need to wait
+    // for the DOM to check if this is a back/forward navigation.
     const hasIncoming = !!sessionStorage.getItem('wm_transition');
+    const isBackForward = _config.pageTransitions && _isBackForwardNavigation();
     const shouldHide =
-      (_config.loader && !hasIncoming) ||          // loader path: hide until overlay covers
-      (hasIncoming && _config.pageTransitions);     // transition entry path: hide until overlay shows
+      (hasIncoming && _config.pageTransitions) ||
+      isBackForward ||
+      (_config.loader && !hasIncoming && !isBackForward);
+
     if (shouldHide) _hideBody();
 
-    // ─── Setup (runs after DOM is available) ─────────────────────────────────
     function setup() {
-      _buildOverlay();   // create the shared overlay DOM node
-      _resetOverlay();   // set overlay to opacity:0 / inert state
+      _buildOverlay();
+      _resetOverlay();
 
-      // Restore body visibility now — the overlay will cover the page
-      // immediately after this if either the loader or a transition entry runs.
+      // Restore body — the overlay takes over immediately after this
       _showBody();
 
-      // If we arrived here from a page transition, show the overlay and
-      // fade it out to reveal the new page. Skip the loader in this case.
+      // Priority order: transition entry → back/forward → loader → nothing
       const isEntry = _config.pageTransitions && _revealOnEntry();
 
-      if (!isEntry && _config.loader) {
+      if (!isEntry && isBackForward && _config.pageTransitions) {
+        _isTransitioning = true;
+        _revealBackForward();
+      } else if (!isEntry && !isBackForward && _config.loader) {
         _isTransitioning = true;
         _runLoader();
       }
 
-      // Attach the click listener for future navigations on this page
       if (_config.pageTransitions) {
         _initTransitions();
+        _initBackForward(); // pageshow listener for bfcache restores
       }
     }
 
-    // Run setup as soon as the DOM is available. If the script is placed in
-    // <head> it waits for DOMContentLoaded; if it's before </body> the DOM
-    // is already ready and setup runs synchronously.
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', setup, { once: true });
     } else {

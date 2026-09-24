@@ -501,9 +501,19 @@ There are two ways to integrate the system: a quick paste method for testing, an
 
 Use this to try the system out before setting up a GitHub repository.
 
-In **Site Settings → Custom Code → Head**, add:
+In **Site Settings → Custom Code → Head**, add both the anti-flash snippet and the stylesheet:
 
 ```html
+<!-- Prevents flash of content before the overlay loads -->
+<script>
+  (function(){
+    var s=document.createElement('style');
+    s.setAttribute('data-wm-init','');
+    s.textContent='body{visibility:hidden}';
+    document.head.appendChild(s);
+  })();
+</script>
+
 <style>
   /* paste the full contents of dist/webflow-motion.css here */
 </style>
@@ -549,11 +559,21 @@ git push origin v1.0.0
 
 jsDelivr automatically serves any tagged GitHub release. The first request to a new tag can take 2–3 minutes to propagate — if the URL returns a 404, wait a moment and try again.
 
-**3. Load the stylesheet**
+**3. Add the anti-flash snippet and stylesheet**
 
 In **Site Settings → Custom Code → Head**:
 
 ```html
+<!-- Prevents flash of content before the overlay loads -->
+<script>
+  (function(){
+    var s=document.createElement('style');
+    s.setAttribute('data-wm-init','');
+    s.textContent='body{visibility:hidden}';
+    document.head.appendChild(s);
+  })();
+</script>
+
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@v1.0.0/dist/webflow-motion.css"

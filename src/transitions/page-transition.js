@@ -106,8 +106,44 @@ function _revealOnEntry() {
   return true;
 }
 
+// ─── Back / forward navigation ────────────────────────────────────────────────
+// Detects whether the current page load was triggered by the browser's
+// back or forward button via the Navigation Timing API.
+
+function _isBackForwardNavigation() {
+  try {
+    const nav = performance.getEntriesByType('navigation')[0];
+    return nav && nav.type === 'back_forward';
+  } catch {
+    return false;
+  }
+}
+
+// Quick reveal for back/forward: show the overlay instantly then fade out.
+// No page name or long hold — the user already knows where they're going.
+
+function _revealBackForward() {
+  _showOverlayInstant(_config.transitionColor, '');
+  gsap.delayedCall(0.2, () => {
+    _overlayOut(() => {
+      _isTransitioning = false;
+    });
+  });
+}
+
+// Handles pages restored from the browser's back/forward cache (bfcache).
+// When a bfcache restore happens, scripts don't re-run — the pageshow event
+// fires instead with persisted: true. We play a quick reveal to smooth it out.
+
+function _initBackForward() {
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return; // not a bfcache restore — ignore
+    _isTransitioning = true;
+    _revealBackForward();
+  });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
-// Attaches the click listener. Called once from init.js setup().
 
 function _initTransitions() {
   document.addEventListener('click', _handleClick);

@@ -111,4 +111,14 @@ function _revealOnEntry() {
 
 function _initTransitions() {
   document.addEventListener('click', _handleClick);
+
+  // When the browser restores this page from bfcache (back/forward button),
+  // the overlay is frozen at full opacity from the transition that preceded
+  // the navigation — _isTransitioning is still true and nothing clears it.
+  // Detect the restore and fade the overlay out so the page is usable again.
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted || !_overlay) return;
+    _isTransitioning = false;
+    _overlayOut();
+  });
 }

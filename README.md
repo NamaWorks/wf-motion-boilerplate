@@ -519,8 +519,10 @@ Use this to try the system out before setting up a GitHub repository.
 In **Site Settings → Custom Code → Head**, add both the anti-flash snippet and the stylesheet:
 
 ```html
-<!-- Sets html background to match the overlay color and hides the body
-     before the first paint — prevents white flash between page loads -->
+<!-- Hides the page before the first paint to prevent flash of content.
+     Uses opacity:0 on html — stronger than visibility:hidden, cannot be
+     overridden by any child stylesheet. Removed by the motion script once
+     the overlay is in place. -->
 <script>
   (function(){
     var bg = '#000000';
@@ -528,7 +530,7 @@ In **Site Settings → Custom Code → Head**, add both the anti-flash snippet a
     if (raw) { try { bg = JSON.parse(raw).color || bg; } catch(e){} }
     var s = document.createElement('style');
     s.setAttribute('data-wm-init','');
-    s.textContent = 'html{background-color:' + bg + '!important}body{visibility:hidden}';
+    s.textContent = 'html{background-color:' + bg + '!important;opacity:0!important}';
     document.head.appendChild(s);
   })();
 </script>
@@ -583,8 +585,10 @@ jsDelivr automatically serves any tagged GitHub release. The first request to a 
 In **Site Settings → Custom Code → Head**:
 
 ```html
-<!-- Sets html background to match the overlay color and hides the body
-     before the first paint — prevents white flash between page loads -->
+<!-- Hides the page before the first paint to prevent flash of content.
+     Uses opacity:0 on html — stronger than visibility:hidden, cannot be
+     overridden by any child stylesheet. Removed by the motion script once
+     the overlay is in place. -->
 <script>
   (function(){
     var bg = '#000000';
@@ -592,7 +596,7 @@ In **Site Settings → Custom Code → Head**:
     if (raw) { try { bg = JSON.parse(raw).color || bg; } catch(e){} }
     var s = document.createElement('style');
     s.setAttribute('data-wm-init','');
-    s.textContent = 'html{background-color:' + bg + '!important}body{visibility:hidden}';
+    s.textContent = 'html{background-color:' + bg + '!important;opacity:0!important}';
     document.head.appendChild(s);
   })();
 </script>

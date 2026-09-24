@@ -369,14 +369,15 @@ function _hideBody() {
   // Skip if the head snippet already handled this
   if (document.head.querySelector('[data-wm-init]')) return;
 
-  // Match the html background to the overlay color so the browser-native
-  // flash between page loads shows the right color instead of white.
+  // opacity:0 on html is more aggressive than visibility:hidden on body —
+  // no child stylesheet can override it, and it hides everything including
+  // Webflow's own rendered output.
   const hasIncoming = !!sessionStorage.getItem('wm_transition');
   const bg = hasIncoming ? _config.transitionColor : _config.loaderColor;
 
   _bodyHideStyle = document.createElement('style');
   _bodyHideStyle.setAttribute('data-wm', '');
-  _bodyHideStyle.textContent = `html{background-color:${bg}!important}body{visibility:hidden!important}`;
+  _bodyHideStyle.textContent = `html{background-color:${bg}!important;opacity:0!important}`;
   document.head.appendChild(_bodyHideStyle);
 }
 

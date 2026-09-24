@@ -9,7 +9,24 @@ const _config = {
   loaderText: 'Loading',   // text shown inside the loader overlay
   transitionColor: '#1a5c38', // overlay background for page transitions (green)
   duration: 0.7,           // animation duration in seconds (all GSAP tweens use this)
-  ease: 'power2.inOut'     // GSAP easing applied to all overlay animations
+  ease: 'power2.inOut',    // GSAP easing applied to all overlay animations
+
+  // Custom animation functions — replace the default fade when provided.
+  // Both receive the overlay object and a done callback.
+  //
+  //   overlay.el   — the full-screen background <div>
+  //   overlay.text — the text label <span>
+  //   done()       — must be called when the animation finishes
+  //
+  // Example:
+  //   animateIn: (overlay, done) => {
+  //     gsap.fromTo(overlay.el, { yPercent: 100 }, { yPercent: 0, duration: 0.6, onComplete: done });
+  //   },
+  //   animateOut: (overlay, done) => {
+  //     gsap.to(overlay.el, { yPercent: -100, duration: 0.6, onComplete: done });
+  //   }
+  animateIn: null,
+  animateOut: null
 };
 
 // ─── Runtime state ───────────────────────────────────────────────────────────

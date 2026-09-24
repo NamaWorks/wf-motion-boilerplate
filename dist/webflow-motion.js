@@ -19,7 +19,24 @@ const _config = {
   loaderText: 'Loading',   // text shown inside the loader overlay
   transitionColor: '#1a5c38', // overlay background for page transitions (green)
   duration: 0.7,           // animation duration in seconds (all GSAP tweens use this)
-  ease: 'power2.inOut'     // GSAP easing applied to all overlay animations
+  ease: 'power2.inOut',    // GSAP easing applied to all overlay animations
+
+  // Custom animation functions — replace the default fade when provided.
+  // Both receive the overlay object and a done callback.
+  //
+  //   overlay.el   — the full-screen background <div>
+  //   overlay.text — the text label <span>
+  //   done()       — must be called when the animation finishes
+  //
+  // Example:
+  //   animateIn: (overlay, done) => {
+  //     gsap.fromTo(overlay.el, { yPercent: 100 }, { yPercent: 0, duration: 0.6, onComplete: done });
+  //   },
+  //   animateOut: (overlay, done) => {
+  //     gsap.to(overlay.el, { yPercent: -100, duration: 0.6, onComplete: done });
+  //   }
+  animateIn: null,
+  animateOut: null
 };
 
 // ─── Runtime state ───────────────────────────────────────────────────────────
@@ -118,18 +135,24 @@ function _onPageReady(callback) {
 
 // ── animations/fade.js ──
 // ─── Overlay in ──────────────────────────────────────────────────────────────
-// Fades the overlay in, then optionally slides the text label up into view.
-// Used by page transitions on the EXIT page (before navigating away).
-// onComplete fires after the full sequence — navigation happens there.
+// Runs when the overlay needs to appear — on exit page transitions and loader.
+// If _config.animateIn is provided, delegates to that. Otherwise uses the
+// default fade with an optional text slide-up.
 
 function _overlayIn(onComplete) {
+  _overlay.el.classList.add('is-active');
+
+  // Custom animation — user is responsible for the full sequence.
+  // is-active is already added above so pointer-events work during the animation.
+  if (_config.animateIn) {
+    _config.animateIn(_overlay, onComplete || function () {});
+    return;
+  }
+
+  // ─── Default fade ───────────────────────────────────────────────────────────
   const hasText = _overlay.text.textContent.trim().length > 0;
   const tl = gsap.timeline({ onComplete });
 
-  // Make the overlay interactive while it's visible
-  _overlay.el.classList.add('is-active');
-
-  // Fade the overlay background in
   tl.to(_overlay.el, {
     opacity: 1,
     duration: _config.duration,
@@ -151,18 +174,28 @@ function _overlayIn(onComplete) {
 }
 
 // ─── Overlay out ─────────────────────────────────────────────────────────────
-// Fades the overlay out, sliding the text upward as it exits.
-// Used by the loader (after window.load) and by the transition reveal on the
-// ENTRY page (after arriving from a navigation).
-// onComplete fires when the overlay is fully invisible — cleanup happens there.
+// Runs when the overlay needs to disappear — on entry page reveal and loader exit.
+// If _config.animateOut is provided, delegates to that. Otherwise uses the
+// default fade with an optional text slide-up exit.
 
 function _overlayOut(onComplete) {
+  // Custom animation — cleanup (removing is-active, resetting GSAP styles)
+  // is handled internally after the user's done() callback fires.
+  if (_config.animateOut) {
+    _config.animateOut(_overlay, function () {
+      _overlay.el.classList.remove('is-active');
+      gsap.set(_overlay.el, { opacity: 0 });
+      gsap.set(_overlay.text, { opacity: 0, y: 15 });
+      if (onComplete) onComplete();
+    });
+    return;
+  }
+
+  // ─── Default fade ───────────────────────────────────────────────────────────
   const hasText = _overlay.text.textContent.trim().length > 0;
 
   const tl = gsap.timeline({
     onComplete() {
-      // Clean up after the animation: disable pointer-events and reset GSAP
-      // inline styles so the overlay is fully inert until the next use.
       _overlay.el.classList.remove('is-active');
       gsap.set(_overlay.el, { opacity: 0 });
       gsap.set(_overlay.text, { opacity: 0, y: 15 });

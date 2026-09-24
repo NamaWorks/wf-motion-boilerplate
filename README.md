@@ -640,6 +640,63 @@ Immediately after the script tags:
 | `transitionColor` | string | `#1a5c38` | Background color of the transition overlay |
 | `duration` | number | `0.7` | Animation duration in seconds |
 | `ease` | string | `power2.inOut` | GSAP easing function |
+| `animateIn` | function | `null` | Custom enter animation — replaces the default fade |
+| `animateOut` | function | `null` | Custom exit animation — replaces the default fade |
+
+### Custom animations
+
+By default the overlay fades in and out with a subtle text slide. To replace this with your own animation, pass `animateIn` and `animateOut` functions to `init()`.
+
+Both functions receive:
+- `overlay.el` — the full-screen background `<div>`
+- `overlay.text` — the text label `<span>`
+- `done` — a callback you **must** call when the animation finishes (triggers navigation or page reveal)
+
+**Example — slide up:**
+
+```html
+<script>
+  WebflowMotion.init({
+    loader: true,
+    pageTransitions: true,
+    animateIn: function(overlay, done) {
+      gsap.fromTo(overlay.el,
+        { yPercent: 100 },
+        { yPercent: 0, duration: 0.6, ease: 'power2.inOut', onComplete: done }
+      );
+    },
+    animateOut: function(overlay, done) {
+      gsap.to(overlay.el,
+        { yPercent: -100, duration: 0.6, ease: 'power2.inOut', onComplete: done }
+      );
+    }
+  });
+</script>
+```
+
+**Example — clip path wipe:**
+
+```html
+<script>
+  WebflowMotion.init({
+    loader: true,
+    pageTransitions: true,
+    animateIn: function(overlay, done) {
+      gsap.fromTo(overlay.el,
+        { clipPath: 'inset(0 100% 0 0)' },
+        { clipPath: 'inset(0 0% 0 0)', duration: 0.7, ease: 'power2.inOut', onComplete: done }
+      );
+    },
+    animateOut: function(overlay, done) {
+      gsap.to(overlay.el,
+        { clipPath: 'inset(0 0 0 100%)', duration: 0.7, ease: 'power2.inOut', onComplete: done }
+      );
+    }
+  });
+</script>
+```
+
+If only one function is provided, the other falls back to the default fade.
 
 ### Custom page names
 

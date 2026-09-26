@@ -7,7 +7,9 @@ const _config = {
   showPageName: true,      // display the destination page name on the overlay
   loaderColor: '#000000',  // overlay background for the loader (black)
   loaderText: 'Loading',   // text shown inside the loader overlay
-  transitionColor: '#1a5c38', // overlay background for page transitions (green)
+  loaderLottie: null,      // path/URL to a Lottie JSON — when set, replaces the text loader
+  loaderWaitForLoop: true, // waits for the animation to complete one full loop before exiting
+  transitionColor: '#353535', // overlay background for page transitions
   duration: 0.7,           // animation duration in seconds (all GSAP tweens use this)
   ease: 'power2.inOut',    // GSAP easing applied to all overlay animations
 
@@ -31,9 +33,8 @@ const _config = {
 
 // ─── Runtime state ───────────────────────────────────────────────────────────
 
-// The single overlay DOM node shared by both the loader and transition system.
-// Set once in _buildOverlay() and referenced everywhere else.
-let _overlay = null;
+let _loaderOverlay = null;
+let _transitionOverlay = null;
 
 // Guard flag — prevents a second transition from starting while one is already
 // running. Checked in _handleClick() and reset when the overlay fully exits.

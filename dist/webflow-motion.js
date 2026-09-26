@@ -17,7 +17,9 @@ const _config = {
   showPageName: true,      // display the destination page name on the overlay
   loaderColor: '#000000',  // overlay background for the loader (black)
   loaderText: 'Loading',   // text shown inside the loader overlay
-  transitionColor: '#1a5c38', // overlay background for page transitions (green)
+  loaderLottie: null,      // path/URL to a Lottie JSON — when set, replaces the text loader
+  loaderWaitForLoop: true, // waits for the animation to complete one full loop before exiting
+  transitionColor: '#353535', // overlay background for page transitions
   duration: 0.7,           // animation duration in seconds (all GSAP tweens use this)
   ease: 'power2.inOut',    // GSAP easing applied to all overlay animations
 
@@ -41,9 +43,8 @@ const _config = {
 
 // ─── Runtime state ───────────────────────────────────────────────────────────
 
-// The single overlay DOM node shared by both the loader and transition system.
-// Set once in _buildOverlay() and referenced everywhere else.
-let _overlay = null;
+let _loaderOverlay = null;
+let _transitionOverlay = null;
 
 // Guard flag — prevents a second transition from starting while one is already
 // running. Checked in _handleClick() and reset when the overlay fully exits.
@@ -51,13 +52,13 @@ let _isTransitioning = false;
 
 // ── core/overlay.js ──
 // ─── Overlay DOM ─────────────────────────────────────────────────────────────
-// Creates the single overlay element that both the loader and transition system
-// share. Called once during setup, before any animations run.
+// Creates an overlay element. Returns the { el, text } object.
+// Called once per overlay instance during setup.
 
 function _buildOverlay() {
   const el = document.createElement('div');
   el.className = 'wm-overlay';
-  el.setAttribute('aria-hidden', 'true'); // hide from screen readers
+  el.setAttribute('aria-hidden', 'true');
 
   const text = document.createElement('span');
   text.className = 'wm-text';
@@ -65,43 +66,31 @@ function _buildOverlay() {
   el.appendChild(text);
   document.body.appendChild(el);
 
-  // Store both nodes on the shared _overlay reference so the rest of the
-  // system can reach them without querying the DOM again.
-  _overlay = { el, text };
+  return { el, text };
 }
 
 // ─── Overlay helpers ─────────────────────────────────────────────────────────
 
-// Sets the overlay background — called with loaderColor or transitionColor
-// before each animation sequence.
-function _setOverlayColor(color) {
-  _overlay.el.style.backgroundColor = color;
+function _setOverlayColor(overlay, color) {
+  overlay.el.style.backgroundColor = color;
 }
 
-// Sets the text label inside the overlay (e.g. "Loading" or "About").
-// Passing an empty string clears it so _overlayIn skips the text animation.
-function _setOverlayText(str) {
-  _overlay.text.textContent = str || '';
+function _setOverlayText(overlay, str) {
+  overlay.text.textContent = str || '';
 }
 
-// Shows the overlay immediately at full opacity — no animation.
-// Used by the loader (which must cover the page before the first paint)
-// and by the transition reveal on the destination page.
-function _showOverlayInstant(color, str) {
-  _setOverlayColor(color);
-  _setOverlayText(str);
-  gsap.set(_overlay.el, { opacity: 1 });
-  gsap.set(_overlay.text, { opacity: 1, y: 0 });
-  _overlay.el.classList.add('is-active'); // enables pointer-events (CSS)
+function _showOverlayInstant(overlay, color, str) {
+  _setOverlayColor(overlay, color);
+  _setOverlayText(overlay, str);
+  gsap.set(overlay.el, { opacity: 1 });
+  gsap.set(overlay.text, { opacity: 1, y: 0 });
+  overlay.el.classList.add('is-active');
 }
 
-// Resets overlay to its hidden, neutral state.
-// Called at the start of setup() so the overlay is invisible on page load
-// before we decide whether to run the loader or the transition reveal.
-function _resetOverlay() {
-  gsap.set(_overlay.el, { opacity: 0 });
-  gsap.set(_overlay.text, { opacity: 0, y: 15 }); // text starts slightly below
-  _overlay.el.classList.remove('is-active');
+function _resetOverlay(overlay) {
+  gsap.set(overlay.el, { opacity: 0 });
+  gsap.set(overlay.text, { opacity: 0, y: 15 });
+  overlay.el.classList.remove('is-active');
 }
 
 // ── core/lifecycle.js ──
@@ -139,21 +128,21 @@ function _onPageReady(callback) {
 // If _config.animateIn is provided, delegates to that. Otherwise uses the
 // default fade with an optional text slide-up.
 
-function _overlayIn(onComplete) {
-  _overlay.el.classList.add('is-active');
+function _overlayIn(overlay, onComplete) {
+  overlay.el.classList.add('is-active');
 
   // Custom animation — user is responsible for the full sequence.
   // is-active is already added above so pointer-events work during the animation.
   if (_config.animateIn) {
-    _config.animateIn(_overlay, onComplete || function () {});
+    _config.animateIn(overlay, onComplete || function () {});
     return;
   }
 
   // ─── Default fade ───────────────────────────────────────────────────────────
-  const hasText = _overlay.text.textContent.trim().length > 0;
+  const hasText = overlay.text.textContent.trim().length > 0;
   const tl = gsap.timeline({ onComplete });
 
-  tl.to(_overlay.el, {
+  tl.to(overlay.el, {
     opacity: 1,
     duration: _config.duration,
     ease: _config.ease
@@ -162,7 +151,7 @@ function _overlayIn(onComplete) {
   // If there's a text label, slide it up from y:15 to y:0 while fading in.
   // Overlaps slightly with the background fade so it feels like one motion.
   if (hasText) {
-    tl.to(_overlay.text, {
+    tl.to(overlay.text, {
       opacity: 1,
       y: 0,
       duration: _config.duration * 0.7,
@@ -178,27 +167,27 @@ function _overlayIn(onComplete) {
 // If _config.animateOut is provided, delegates to that. Otherwise uses the
 // default fade with an optional text slide-up exit.
 
-function _overlayOut(onComplete) {
+function _overlayOut(overlay, onComplete) {
   // Custom animation — cleanup (removing is-active, resetting GSAP styles)
   // is handled internally after the user's done() callback fires.
   if (_config.animateOut) {
-    _config.animateOut(_overlay, function () {
-      _overlay.el.classList.remove('is-active');
-      gsap.set(_overlay.el, { opacity: 0 });
-      gsap.set(_overlay.text, { opacity: 0, y: 15 });
+    _config.animateOut(overlay, function () {
+      overlay.el.classList.remove('is-active');
+      gsap.set(overlay.el, { opacity: 0 });
+      gsap.set(overlay.text, { opacity: 0, y: 15 });
       if (onComplete) onComplete();
     });
     return;
   }
 
   // ─── Default fade ───────────────────────────────────────────────────────────
-  const hasText = _overlay.text.textContent.trim().length > 0;
+  const hasText = overlay.text.textContent.trim().length > 0;
 
   const tl = gsap.timeline({
     onComplete() {
-      _overlay.el.classList.remove('is-active');
-      gsap.set(_overlay.el, { opacity: 0 });
-      gsap.set(_overlay.text, { opacity: 0, y: 15 });
+      overlay.el.classList.remove('is-active');
+      gsap.set(overlay.el, { opacity: 0 });
+      gsap.set(overlay.text, { opacity: 0, y: 15 });
       if (onComplete) onComplete();
     }
   });
@@ -206,7 +195,7 @@ function _overlayOut(onComplete) {
   // Slide text up and out (y: 0 → -15) while fading — gives a sense of
   // the page content "arriving" as the overlay pulls away.
   if (hasText) {
-    tl.to(_overlay.text, {
+    tl.to(overlay.text, {
       opacity: 0,
       y: -15,
       duration: _config.duration * 0.5,
@@ -216,7 +205,7 @@ function _overlayOut(onComplete) {
 
   // Fade the overlay background out. Starts slightly before the text finishes
   // so both elements feel like part of the same exit motion.
-  tl.to(_overlay.el, {
+  tl.to(overlay.el, {
     opacity: 0,
     duration: _config.duration,
     ease: _config.ease
@@ -225,42 +214,105 @@ function _overlayOut(onComplete) {
   return tl;
 }
 
+// ── animations/curtain.js ──
+const _animateCurtainIn = (_overlay, done) => {
+  _overlay.el.classList.add('wm-curtain');
+  _overlay.el.style.backgroundColor = '';
+  gsap.fromTo(_overlay.el,
+    { yPercent: 100, opacity: 1 },
+    { yPercent: 0, duration: _config.duration, ease: _config.ease, onComplete: done }
+  );
+};
+
+const _animateCurtainOut = (_overlay, done) => {
+  _overlay.el.classList.add('wm-curtain');
+  _overlay.el.style.backgroundColor = '';
+  gsap.to(_overlay.el,
+    { yPercent: -100, duration: _config.duration, ease: _config.ease, onComplete: done }
+  );
+};
+
 // ── loader/loader.js ──
 // ─── Page loader ─────────────────────────────────────────────────────────────
 // Runs on the initial visit to the site (no sessionStorage transition flag).
-// By the time this runs, _hideBody() has already made the body invisible and
-// the overlay is about to cover it — so the user never sees a flash of content.
+// Branches on whether a Lottie animation path is configured.
 //
-// Sequence:
+// Lottie path:
+//   1. Show overlay instantly
+//   2. Play Lottie animation
+//   3. Wait for page ready AND (optionally) one full loop
+//   4. Fade the overlay out
+//
+// Text path:
 //   1. Show overlay instantly (black, "Loading" text)
 //   2. Animate the text in
 //   3. Wait for window.load (or 8s timeout)
 //   4. Fade the overlay out, revealing the page
 
 function _runLoader() {
-  // Cover the page immediately — _hideBody() kept it invisible until now,
-  // _showBody() in setup() restored visibility, but the overlay takes over.
-  _showOverlayInstant(_config.loaderColor, _config.loaderText);
+  if (_config.loaderLottie && window.lottie) {
+    _showOverlayInstant(_loaderOverlay, _config.loaderColor, '');
 
-  // Reset text so we can animate it in from the bottom
-  gsap.set(_overlay.text, { opacity: 0, y: 15 });
-  gsap.to(_overlay.text, {
-    opacity: 1,
-    y: 0,
-    duration: _config.duration * 0.7,
-    ease: _config.ease,
-    delay: 0.15 // small pause before text appears, feels more intentional
-  });
+    const container = document.createElement('div');
+    container.className = 'wm-lottie';
+    _loaderOverlay.el.appendChild(container);
 
-  // Once the page is fully loaded, exit the loader
-  _onPageReady(() => {
-    _overlayOut(() => {
-      _isTransitioning = false;
+    const anim = window.lottie.loadAnimation({
+      container,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      path: _config.loaderLottie
     });
-  });
+
+    function _exitLoader() {
+      gsap.to(_loaderOverlay.el, {
+        opacity: 0,
+        duration: _config.duration,
+        ease: _config.ease,
+        onComplete: () => {
+          anim.destroy();
+          container.remove();
+          _loaderOverlay.el.classList.remove('is-active');
+          _isTransitioning = false;
+        }
+      });
+    }
+
+    if (_config.loaderWaitForLoop) {
+      let pageReady = false;
+      let loopDone = false;
+      anim.addEventListener('loopComplete', () => { loopDone = true; if (pageReady) _exitLoader(); });
+      _onPageReady(() => { pageReady = true; if (loopDone) _exitLoader(); });
+    } else {
+      _onPageReady(_exitLoader);
+    }
+
+  } else {
+    _showOverlayInstant(_loaderOverlay, _config.loaderColor, _config.loaderText);
+    gsap.set(_loaderOverlay.text, { opacity: 0, y: 15 });
+    gsap.to(_loaderOverlay.text, {
+      opacity: 1, y: 0,
+      duration: _config.duration * 0.7,
+      ease: _config.ease,
+      delay: 0.15
+    });
+    _onPageReady(() => {
+      _overlayOut(_loaderOverlay, () => { _isTransitioning = false; });
+    });
+  }
 }
 
 // ── transitions/page-transition.js ──
+// ─── URL resolution ───────────────────────────────────────────────────────────
+// Resolves a potentially relative href against the current page.
+// Uses document.baseURI so it respects any <base> tag and correctly handles
+// both .html file paths and clean URLs (e.g. /about, /work).
+
+function _resolveUrl(href) {
+  return new URL(href, document.baseURI).href;
+}
+
 // ─── Page name from URL ───────────────────────────────────────────────────────
 // Derives a human-readable page name from a URL path.
 // /about → "About", /our-work → "Our work"
@@ -268,7 +320,7 @@ function _runLoader() {
 
 function _pageNameFromUrl(href) {
   try {
-    const { pathname } = new URL(href, window.location.origin);
+    const { pathname } = new URL(_resolveUrl(href));
     const segment = pathname.replace(/\/$/, '').split('/').pop();
     if (!segment) return 'Home';
     return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/[-_]/g, ' ');
@@ -287,7 +339,7 @@ function _isInternalLink(el) {
   if (!href || /^(#|mailto:|tel:|javascript:)/i.test(href)) return false;
   if (el.target === '_blank') return false;
   try {
-    return new URL(href, window.location.origin).origin === window.location.origin;
+    return new URL(_resolveUrl(href)).origin === window.location.origin;
   } catch {
     return false;
   }
@@ -306,7 +358,8 @@ function _handleClick(e) {
   if (!_isInternalLink(link)) return;
 
   const href = link.getAttribute('href');
-  const dest = new URL(href, window.location.origin).pathname;
+  const resolvedHref = _resolveUrl(href);
+  const dest = new URL(resolvedHref).pathname;
   if (dest === window.location.pathname) return; // same page — do nothing
 
   e.preventDefault();
@@ -316,14 +369,14 @@ function _handleClick(e) {
   // allowing manual control over what's displayed on the overlay.
   const pageName = link.getAttribute('data-page') || _pageNameFromUrl(href);
 
-  // Prepare the overlay for the transition (green, destination page name)
-  _setOverlayColor(_config.transitionColor);
-  _setOverlayText(_config.showPageName ? pageName : '');
-  gsap.set(_overlay.text, { opacity: 0, y: 15 });
+  // Prepare the overlay for the transition
+  _setOverlayColor(_transitionOverlay, _config.transitionColor);
+  _setOverlayText(_transitionOverlay, _config.showPageName ? pageName : '');
+  gsap.set(_transitionOverlay.text, { opacity: 0, y: 15 });
 
   // Fade the overlay in, then navigate. Navigation only happens after the
   // overlay is fully visible so the exit feels intentional, not abrupt.
-  _overlayIn(() => {
+  _overlayIn(_transitionOverlay, () => {
     // Store the transition state in sessionStorage so the destination page
     // knows it arrived via a transition and should reveal with the overlay.
     sessionStorage.setItem('wm_transition', JSON.stringify({
@@ -331,7 +384,7 @@ function _handleClick(e) {
       color: _config.transitionColor,
       timestamp: Date.now()
     }));
-    window.location.href = href;
+    window.location.href = resolvedHref;
   });
 }
 
@@ -357,11 +410,12 @@ function _revealOnEntry() {
   const color = data.color || _config.transitionColor;
 
   // Show overlay immediately at full opacity so there's no flash of page content
-  _showOverlayInstant(color, _config.showPageName ? pageName : '');
+  _showOverlayInstant(_transitionOverlay, color, _config.showPageName ? pageName : '');
 
   // Hold for a moment so the user can read the page name, then exit
-  gsap.delayedCall(0.4, () => {
-    _overlayOut(() => {
+  const hold = _config.showPageName ? 0.4 : 0;
+  gsap.delayedCall(hold, () => {
+    _overlayOut(_transitionOverlay, () => {
       _isTransitioning = false;
     });
   });
@@ -380,9 +434,9 @@ function _initTransitions() {
   // the navigation — _isTransitioning is still true and nothing clears it.
   // Detect the restore and fade the overlay out so the page is usable again.
   window.addEventListener('pageshow', (e) => {
-    if (!e.persisted || !_overlay) return;
+    if (!e.persisted || !_transitionOverlay) return;
     _isTransitioning = false;
-    _overlayOut();
+    _overlayOut(_transitionOverlay);
   });
 }
 
@@ -452,8 +506,10 @@ window.WebflowMotion = {
 
     // ─── Setup (runs after DOM is available) ─────────────────────────────────
     function setup() {
-      _buildOverlay();  // create the shared overlay DOM node
-      _resetOverlay();  // set overlay to opacity:0 / inert state
+      _loaderOverlay = _buildOverlay();
+      _transitionOverlay = _buildOverlay();
+      _resetOverlay(_loaderOverlay);
+      _resetOverlay(_transitionOverlay);
 
       // Set up the overlay BEFORE restoring body visibility.
       // Both _revealOnEntry and _runLoader call _showOverlayInstant synchronously,
@@ -484,6 +540,14 @@ window.WebflowMotion = {
     } else {
       setup();
     }
+  }
+};
+
+// ── core/presets.js ──
+window.WebflowMotion.presets = {
+  curtain: {
+    animateIn: _animateCurtainIn,
+    animateOut: _animateCurtainOut
   }
 };
 

@@ -1,3 +1,12 @@
+// ─── URL resolution ───────────────────────────────────────────────────────────
+// Resolves a potentially relative href against the current page.
+// Uses document.baseURI so it respects any <base> tag and correctly handles
+// both .html file paths and clean URLs (e.g. /about, /work).
+
+function _resolveUrl(href) {
+  return new URL(href, document.baseURI).href;
+}
+
 // ─── Page name from URL ───────────────────────────────────────────────────────
 // Derives a human-readable page name from a URL path.
 // /about → "About", /our-work → "Our work"
@@ -5,7 +14,7 @@
 
 function _pageNameFromUrl(href) {
   try {
-    const { pathname } = new URL(href, window.location.origin);
+    const { pathname } = new URL(_resolveUrl(href));
     const segment = pathname.replace(/\/$/, '').split('/').pop();
     if (!segment) return 'Home';
     return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/[-_]/g, ' ');
@@ -24,7 +33,7 @@ function _isInternalLink(el) {
   if (!href || /^(#|mailto:|tel:|javascript:)/i.test(href)) return false;
   if (el.target === '_blank') return false;
   try {
-    return new URL(href, window.location.origin).origin === window.location.origin;
+    return new URL(_resolveUrl(href)).origin === window.location.origin;
   } catch {
     return false;
   }
@@ -43,7 +52,8 @@ function _handleClick(e) {
   if (!_isInternalLink(link)) return;
 
   const href = link.getAttribute('href');
-  const dest = new URL(href, window.location.origin).pathname;
+  const resolvedHref = _resolveUrl(href);
+  const dest = new URL(resolvedHref).pathname;
   if (dest === window.location.pathname) return; // same page — do nothing
 
   e.preventDefault();
@@ -53,14 +63,14 @@ function _handleClick(e) {
   // allowing manual control over what's displayed on the overlay.
   const pageName = link.getAttribute('data-page') || _pageNameFromUrl(href);
 
-  // Prepare the overlay for the transition (green, destination page name)
-  _setOverlayColor(_config.transitionColor);
-  _setOverlayText(_config.showPageName ? pageName : '');
-  gsap.set(_overlay.text, { opacity: 0, y: 15 });
+  // Prepare the overlay for the transition
+  _setOverlayColor(_transitionOverlay, _config.transitionColor);
+  _setOverlayText(_transitionOverlay, _config.showPageName ? pageName : '');
+  gsap.set(_transitionOverlay.text, { opacity: 0, y: 15 });
 
   // Fade the overlay in, then navigate. Navigation only happens after the
   // overlay is fully visible so the exit feels intentional, not abrupt.
-  _overlayIn(() => {
+  _overlayIn(_transitionOverlay, () => {
     // Store the transition state in sessionStorage so the destination page
     // knows it arrived via a transition and should reveal with the overlay.
     sessionStorage.setItem('wm_transition', JSON.stringify({
@@ -68,7 +78,7 @@ function _handleClick(e) {
       color: _config.transitionColor,
       timestamp: Date.now()
     }));
-    window.location.href = href;
+    window.location.href = resolvedHref;
   });
 }
 
@@ -94,11 +104,12 @@ function _revealOnEntry() {
   const color = data.color || _config.transitionColor;
 
   // Show overlay immediately at full opacity so there's no flash of page content
-  _showOverlayInstant(color, _config.showPageName ? pageName : '');
+  _showOverlayInstant(_transitionOverlay, color, _config.showPageName ? pageName : '');
 
   // Hold for a moment so the user can read the page name, then exit
-  gsap.delayedCall(0.4, () => {
-    _overlayOut(() => {
+  const hold = _config.showPageName ? 0.4 : 0;
+  gsap.delayedCall(hold, () => {
+    _overlayOut(_transitionOverlay, () => {
       _isTransitioning = false;
     });
   });
@@ -117,8 +128,8 @@ function _initTransitions() {
   // the navigation — _isTransitioning is still true and nothing clears it.
   // Detect the restore and fade the overlay out so the page is usable again.
   window.addEventListener('pageshow', (e) => {
-    if (!e.persisted || !_overlay) return;
+    if (!e.persisted || !_transitionOverlay) return;
     _isTransitioning = false;
-    _overlayOut();
+    _overlayOut(_transitionOverlay);
   });
 }

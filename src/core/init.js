@@ -63,8 +63,10 @@ window.WebflowMotion = {
 
     // ─── Setup (runs after DOM is available) ─────────────────────────────────
     function setup() {
-      _buildOverlay();  // create the shared overlay DOM node
-      _resetOverlay();  // set overlay to opacity:0 / inert state
+      _loaderOverlay = _buildOverlay();
+      _transitionOverlay = _buildOverlay();
+      _resetOverlay(_loaderOverlay);
+      _resetOverlay(_transitionOverlay);
 
       // Set up the overlay BEFORE restoring body visibility.
       // Both _revealOnEntry and _runLoader call _showOverlayInstant synchronously,

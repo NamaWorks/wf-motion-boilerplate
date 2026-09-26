@@ -16,6 +16,23 @@
   pointer-events: all;
 }
 
+/* ─── Curtain  ─────────────────────────────────────────────────────────────── */
+
+.wm-overlay.wm-curtain {
+  height: 200vh;
+  top: -50vh;
+  bottom: auto;
+  background: linear-gradient(180deg, rgba(53, 53, 53, 0.00) 0%, #353535 25%, #353535 75%, rgba(53, 53, 53, 0.00) 100%);
+}
+
+/* ─── Lottie  ──────────────────────────────────────────────────────────────── */
+
+.wm-lottie {
+  width: min(480px, 70vw);
+  aspect-ratio: 1920 / 1080;
+  pointer-events: none;
+}
+
 /* ─── Text ────────────────────────────────────────────────────────────────── */
 
 .wm-text {

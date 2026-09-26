@@ -18,10 +18,12 @@ The concatenation order matters — files share the same IIFE scope:
 core/state.js                    shared config + runtime flags
 core/overlay.js                  overlay DOM creation + helpers
 core/lifecycle.js                window.load detection
-animations/fade.js               GSAP animation logic
-loader/loader.js                 initial page load sequence
+animations/fade.js               default fade animation
+animations/curtain.js            curtain preset animation
+loader/loader.js                 initial page load sequence (text or Lottie)
 transitions/page-transition.js   navigation interception
 core/init.js                     public API (WebflowMotion.init)
+core/presets.js                  named animation presets (WebflowMotion.presets)
 ```
 
 ---
@@ -142,15 +144,34 @@ test:                 test pages
 >
 ```
 
-**Footer custom code** — GSAP + motion script + init:
+**Footer custom code** — GSAP + Lottie (optional) + motion script + init:
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<!-- include lottie-web only if using the Lottie loader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/NamaWorks/wf-motion-boilerplate@v1.0.0/dist/webflow-motion.js"></script>
 <script>
   WebflowMotion.init({
     loader: true,
     pageTransitions: true,
-    showPageName: true
+    showPageName: false,
+    animateIn: WebflowMotion.presets.curtain.animateIn,
+    animateOut: WebflowMotion.presets.curtain.animateOut
+  });
+</script>
+```
+
+**With Lottie loader:**
+```html
+<script>
+  WebflowMotion.init({
+    loader: true,
+    loaderLottie: 'https://cdn.jsdelivr.net/gh/NamaWorks/wf-motion-boilerplate@v1.0.0/src/lotties/your-animation.json',
+    loaderWaitForLoop: true,
+    pageTransitions: true,
+    showPageName: false,
+    animateIn: WebflowMotion.presets.curtain.animateIn,
+    animateOut: WebflowMotion.presets.curtain.animateOut
   });
 </script>
 ```
@@ -168,7 +189,9 @@ To update a project to a new version, change the version number in both URLs.
 | `showPageName` | `true` | Show destination page name on overlay |
 | `loaderColor` | `#000000` | Loader overlay color |
 | `loaderText` | `Loading` | Loader text |
-| `transitionColor` | `#1a5c38` | Transition overlay color |
+| `loaderLottie` | `null` | Path or URL to a Lottie JSON file — replaces the text loader |
+| `loaderWaitForLoop` | `true` | Wait for one full Lottie loop before exiting |
+| `transitionColor` | `#353535` | Transition overlay color |
 | `duration` | `0.7` | Animation duration in seconds |
 | `ease` | `power2.inOut` | GSAP easing |
 | `animateIn` | `null` | Custom enter animation function |
@@ -200,6 +223,42 @@ WebflowMotion.init({
 ```
 
 If only one is provided, the other falls back to the default fade.
+
+---
+
+## Animation presets
+
+`WebflowMotion.presets` exposes named animations that can be passed directly to `init()`. Presets are defined in `src/core/presets.js` and bundled last so they can reference animation functions from earlier files.
+
+**Current presets:**
+
+| Key | Description |
+|---|---|
+| `presets.curtain` | Slides overlay up from below the viewport on exit, off the top on entry. Gradient fades at both ends so no hard edge is visible. |
+
+```js
+WebflowMotion.init({
+  animateIn: WebflowMotion.presets.curtain.animateIn,
+  animateOut: WebflowMotion.presets.curtain.animateOut
+});
+```
+
+To add a new preset, define the animation functions in a new `src/animations/your-name.js` file, add it to `jsFiles` in `scripts/build.js` before `core/presets.js`, then register it in `src/core/presets.js`.
+
+---
+
+## Lottie loader
+
+When `loaderLottie` is set and `window.lottie` is available, `_runLoader()` switches to a Lottie branch: it mounts the animation inside `.wm-lottie` container div on the loader overlay and waits for page ready. If `loaderWaitForLoop: true`, it also waits for the first `loopComplete` event before fading out — whichever comes last.
+
+If `loaderLottie` is not set or `window.lottie` is missing, the text loader path runs as normal.
+
+The `.wm-lottie` container has `aspect-ratio: 1920 / 1080` by default — adjust this in `src/styles/main.css` to match the composition canvas size of each Lottie file.
+
+lottie-web must be loaded **before** `webflow-motion.js`:
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+```
 
 ---
 

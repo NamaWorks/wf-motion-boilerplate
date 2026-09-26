@@ -10,9 +10,11 @@ const jsFiles = [
   'core/overlay.js',
   'core/lifecycle.js',
   'animations/fade.js',
+  'animations/curtain.js',
   'loader/loader.js',
   'transitions/page-transition.js',
-  'core/init.js'
+  'core/init.js',
+  'core/presets.js',
 ];
 
 const cssFiles = [

@@ -306,9 +306,9 @@ HOME
 └──────────────────────────┘
 ```
 
-## Shared Overlay
+## Overlays
 
-The loader and page transition system should use a shared overlay component.
+The loader and page transition system each use their own independent overlay element. Both are created during initialization and remain in the DOM for the lifetime of the page.
 
 ```
 ┌──────────────────────────────────┐
@@ -320,15 +320,9 @@ The loader and page transition system should use a shared overlay component.
 └──────────────────────────────────┘
 ```
 
-This overlay will be controlled by the core animation system.
+Using separate overlays means any class or style applied by a custom animation (e.g. the curtain gradient) stays isolated to its overlay and never bleeds into the other.
 
-This allows the same component to be used for:
-
-- Initial page loading.
-- Page transitions.
-- Future modal transitions.
-- Future route changes.
-- Custom project-specific animations.
+Both overlays share the same helper functions — `_setOverlayColor`, `_setOverlayText`, `_showOverlayInstant`, `_resetOverlay` — which each receive the overlay object as their first argument.
 
 ## Page Name Detection
 
@@ -400,9 +394,11 @@ webflow-motion/
 │
 ├── src/
 │   ├── core/
-│   │   ├── init.js
+│   │   ├── state.js
+│   │   ├── overlay.js
 │   │   ├── lifecycle.js
-│   │   └── overlay.js
+│   │   ├── init.js
+│   │   └── presets.js
 │   │
 │   ├── loader/
 │   │   └── loader.js
@@ -411,10 +407,18 @@ webflow-motion/
 │   │   └── page-transition.js
 │   │
 │   ├── animations/
-│   │   └── fade.js
+│   │   ├── fade.js
+│   │   └── curtain.js
 │   │
 │   └── styles/
 │       └── main.css
+│
+├── scripts/
+│   └── build.js
+│
+├── dist/
+│   ├── webflow-motion.js
+│   └── webflow-motion.css
 │
 ├── README.md
 └── LICENSE
@@ -637,7 +641,9 @@ Immediately after the script tags:
 | `showPageName` | boolean | `true` | Display the destination page name during transitions |
 | `loaderColor` | string | `#000000` | Background color of the loader overlay |
 | `loaderText` | string | `Loading` | Text displayed during the loader |
-| `transitionColor` | string | `#1a5c38` | Background color of the transition overlay |
+| `loaderLottie` | string | `null` | Path or URL to a Lottie JSON file — replaces the text loader when set |
+| `loaderWaitForLoop` | boolean | `true` | Wait for one full Lottie loop to complete before exiting the loader |
+| `transitionColor` | string | `#353535` | Background color of the transition overlay |
 | `duration` | number | `0.7` | Animation duration in seconds |
 | `ease` | string | `power2.inOut` | GSAP easing function |
 | `animateIn` | function | `null` | Custom enter animation — replaces the default fade |
@@ -697,6 +703,31 @@ Both functions receive:
 ```
 
 If only one function is provided, the other falls back to the default fade.
+
+### Animation presets
+
+The boilerplate ships with a built-in curtain preset accessible via `WebflowMotion.presets`. Presets are available after the script loads and can be passed directly to `init()`.
+
+**Available presets:**
+
+| Preset | Description |
+|---|---|
+| `WebflowMotion.presets.curtain` | Slides the overlay up from below the viewport on exit, and off the top on entry. Uses a gradient that fades to transparent at both ends. |
+
+**Usage:**
+
+```html
+<script>
+  WebflowMotion.init({
+    loader: true,
+    pageTransitions: true,
+    animateIn: WebflowMotion.presets.curtain.animateIn,
+    animateOut: WebflowMotion.presets.curtain.animateOut
+  });
+</script>
+```
+
+The curtain respects `duration` and `ease` from the config, so its speed is controlled the same way as the default fade.
 
 ### Custom page names
 
